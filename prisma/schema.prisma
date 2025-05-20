@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id         String   @id @default(uuid())
+  fullname   String   @db.VarChar(50)
+  username   String   @unique @db.VarChar(50)
+  email      String   @unique @db.VarChar(100)
+  password   String   @db.VarChar(255)
+  phone      String?  @unique @db.VarChar(40)
+  avatar_url String?  @db.VarChar(255)
+  country    String?  @db.VarChar(100)
+  role       Role     @default(user)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  movies           Movies[]
+  user_subcription User_subscriptions[]
+  favorites        Favorites[]
+  reviews          Reviews[]
+  watch            Watch_History[]
+
+  @@map("users")
+}
+
+enum Role {
+  admin
+  user
+  superadmin
+}
+
+model Subscription_plans {
+  id            String               @id @default(uuid())
+  name          String               @db.VarChar(50)
+  price         Float
+  duration_days Int?
+  features      Json
+  is_active     Boolean              @default(true)
+  plan          User_subscriptions[]
+
+  @@map("subscription_plans")
+}
+
+model User_subscriptions {
+  id         String             @id @default(uuid())
+  start_date DateTime           @default(now())
+  end_date   DateTime?
+  status     SubStatus          @default(pending_payment)
+  auto_renew Boolean            @default(false)
+  created_at DateTime           @default(now())
+  user_id    String
+  user       Users              @relation(fields: [user_id], references: [id])
+  plan_id    String
+  plan       Subscription_plans @relation(fields: [plan_id], references: [id])
+  payments   Payments[]
+
+  @@map("user_subscriptions")
+}
+
+enum SubStatus {
+  active
+  expired
+  canceled
+  pending_payment
+}
+
+model Payments {
+  id                      String             @id @default(uuid())
+  user_subscription_id    String
+  user_subscription       User_subscriptions @relation(fields: [user_subscription_id], references: [id])
+  amount                  Float
+  payment_method          PaymentMethod
+  payment_details         Json
+  status                  PaymentStatus
+  external_transaction_id String?            @db.VarChar(100)
+  created_at              DateTime           @default(now())
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  card
+  paypal
+  bank_transfer
+  crypto
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+model Categories {
+  id             String             @id @default(uuid())
+  name           String             @db.VarChar(50)
+  slug           String             @unique @db.VarChar(50)
+  description    String?
+  movie_category Movie_Categories[]
+
+  @@map("categories")
+}
+
+model Movies {
+  id                String    @id @default(uuid())
+  title             String    @db.VarChar(100)
+  slug              String    @unique @db.VarChar(100)
+  description       String?
+  release_year      Int
+  duration_minutes  Int
+  poster_url        String    @db.VarChar(255)
+  rating            Float
+  subscription_type SubsMovie @default(free)
+  view_count        Int       @default(0)
+  createdBy         String    @map("created_by")
+  user              Users     @relation(fields: [createdBy], references: [id])
+  created_at        DateTime  @default(now())
+
+  movie_categories Movie_Categories[]
+  movie_files      Movie_Files[]
+  favorites        Favorites[]
+  reviews          Reviews[]
+  watch            Watch_History[]
+
+  @@map("movies")
+}
+
+enum SubsMovie {
+  free
+  premium
+}
+
+model Movie_Categories {
+  id          String     @id @default(uuid())
+  movie_id    String
+  movie       Movies     @relation(fields: [movie_id], references: [id])
+  category_id String
+  category    Categories @relation(fields: [category_id], references: [id])
+
+  @@map("movie_categories")
+}
+
+model Movie_Files {
+  id       String       @id @default(uuid())
+  movie_id String
+  movie    Movies       @relation(fields: [movie_id], references: [id])
+  file_url String       @db.VarChar(255)
+  quality  VideoQuality
+  language String       @default("uz") @db.VarChar(20)
+
+  @@map("movie_files")
+}
+
+enum VideoQuality {
+  p240  @map("240p")
+  p360  @map("360p")
+  p480  @map("480p")
+  p720  @map("720p")
+  p1080 @map("1080p")
+  k4    @map("4k")
+}
+
+model Favorites {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       Users    @relation(fields: [user_id], references: [id])
+  movie_id   String
+  movie      Movies   @relation(fields: [movie_id], references: [id])
+  created_at DateTime @default(now())
+
+  @@map("favorites")
+}
+
+model Reviews {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       Users    @relation(fields: [user_id], references: [id])
+  movie_id   String
+  movie      Movies   @relation(fields: [movie_id], references: [id])
+  rating     Int
+  comment    String
+  created_at DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Watch_History {
+  id                 String   @id @default(uuid())
+  user_id            String
+  user               Users    @relation(fields: [user_id], references: [id])
+  movie_id           String
+  movie              Movies   @relation(fields: [movie_id], references: [id])
+  watched_duration   Int
+  watched_percentage Float
+  last_watched       DateTime @default(now())
+
+  @@map("watch_history")
+}
